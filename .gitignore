@@ -1,0 +1,6 @@
+vars.tfvars
+*.tfstate*
+*.hcl
+.terraform/
+.terraform/modules/
+.terraform/modules.json

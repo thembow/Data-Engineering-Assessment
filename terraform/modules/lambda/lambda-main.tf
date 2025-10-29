@@ -17,6 +17,41 @@ resource "aws_iam_role" "lambda_exec_role" {
   tags = var.default_tags
 }
 
+resource "aws_iam_role_policy" "lambda_give_s3_access" {
+  name = "${var.role_name}-bucket-access"
+  role = aws_iam_role.lambda_exec_role.name
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Sid = "InputBucketList", #perms for input bucket
+        Effect = "Allow",
+        Action = ["s3:ListBucket"],
+        Resource = [var.input_bucket_arn]
+      },
+      {
+        Sid = "InputBucketObjects", #perms for input bucket objs
+        Effect = "Allow",
+        Action = ["s3:GetObject"],
+        Resource = ["${var.input_bucket_arn}/*"]
+      },
+      {
+        Sid = "OutputBucketList", #perms for output bucket
+        Effect = "Allow",
+        Action = ["s3:ListBucket"],
+        Resource = [var.output_bucket_arn]
+      },
+      {
+        Sid = "OutputBucketObjects", #perms for output bucket objs
+        Effect = "Allow",
+        Action = ["s3:PutObject"],
+        Resource = ["${var.output_bucket_arn}/*"]
+      }
+    ]
+  })
+}
+#lambda doesnt appear to have perms to do s3 actions so have to manually grant 
+
 # Attach the basic execution policy for CloudWatch Logs
 resource "aws_iam_role_policy_attachment" "lambda_logging" {
   role       = aws_iam_role.lambda_exec_role.name
@@ -27,6 +62,7 @@ resource "aws_iam_role_policy_attachment" "lambda_logging" {
 resource "aws_cloudwatch_log_group" "lambda_log_group" {
   name              = "/aws/lambda/${var.lambda_name}"
   retention_in_days = var.log_retention_in_days
+  tags = var.default_tags #has to be logged to be viewable
 }
 
 # Lambda Function
@@ -37,7 +73,8 @@ resource "aws_lambda_function" "lambda_function" {
   image_uri     = var.image_uri
   
   image_config {
-    command = ["lambda.lambda_handler" ]
+    command = ["analytics_app.lambda_handler" ] #i had an issue when i tried to run the file in LocalStack
+    #python has "lambda" as reserved so i just renamed it
   }
   
   timeout       = var.timeout
@@ -49,3 +86,4 @@ resource "aws_lambda_function" "lambda_function" {
 
   tags = var.default_tags
 }
+
